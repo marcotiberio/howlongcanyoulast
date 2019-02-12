@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js">
+  <!--<![endif]-->
+
+  <head class="gr_howlongcanyoula.st">
+    <!-- howlongcanyoula.st -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>how long can you last?</title>
+    <meta name="description" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="" />
+
+    <style>
+      #canvas_container {
+        background-color: black;
+        position: fixed;
+        left: 0px;
+        top: 0px;
+        width: 100%;
+        height: 100%;
+      }
+
+      #assets {
+        display: none;
+      }
+    </style>
+  </head>
+
+  <body data-gr-c-s-loaded="true">
+    <div id="canvas_container" style="left: 0px;">
+      <canvas id="the_canvas" width="1440" height="496"></canvas>
+    </div>
+
+    <div id="assets">
+      <img id="pic0" src="assets/pics/test/0.jpg" />
+      <img id="pic1" src="assets/pics/test/1.jpg" />
+      <img id="pic2" src="assets/pics/test/2.jpg" />
+      <img id="pic3" src="assets/pics/test/3.jpg" />
+      <img id="pic4" src="assets/pics/test/4.jpg" />
+      <img id="pic5" src="assets/pics/test/5.jpg" />
+      <img id="pic6" src="assets/pics/test/6.jpg" />
+      <img id="pic7" src="assets/pics/test/7.png" />
+      <img id="pic8" src="assets/pics/test/8.jpg" />
+      <img id="pic9" src="assets/pics/test/9.jpg" />
+      <img id="pic10" src="assets/pics/test/10.jpg" />
+      <img id="pic11" src="assets/pics/test/11.jpg" />
+      <img id="pic12" src="assets/pics/test/12.jpg" />
+      <img id="pic13" src="assets/pics/test/13.jpg" />
+      <img id="pic14" src="assets/pics/test/14.jpg" />
+      <img id="pic15" src="assets/pics/test/15.jpg" />
+      <img id="pic16" src="assets/pics/test/16.png" />
+    </div>
+
+    <!-- <script>
+            // resize the canvas to match the window
+            function setsize() {
+                the_canvas.width = the_canvas_container.clientWidth;
+                the_canvas_width = the_canvas_container.clientWidth;
+                the_canvas.height = the_canvas_container.clientHeight;
+                the_canvas_height = the_canvas_container.clientHeight;
+            }
+
+            // grab a 100-pixel tall horizontal strip and move it left or right by 50px
+            function effect_tearing() {
+                var pos_y = parseInt(Math.random() * (the_canvas_height - 100));
+
+                the_canvas_ctx.drawImage(
+                    the_canvas,
+                    0,
+                    pos_y,
+                    the_canvas_width,
+                    100,
+                    (parseInt(Math.random() * 2) * 100) - 50, // either 50 or -50
+                    pos_y,
+                    the_canvas_width,
+                    100);
+            }
+
+            // add an image to somewhere inside the canvas
+            function add_image() {
+                var rnd_pic = document.getElementById('pic' + parseInt(Math.random() * 18));
+
+                the_canvas_ctx.drawImage(
+                    rnd_pic,
+                    parseInt(Math.random() * (the_canvas_width - rnd_pic.width)),
+                    parseInt(Math.random() * (the_canvas_height - rnd_pic.height)));
+            }
+
+            // rewind and play one of the audio elements
+            function do_sound() {
+                var rnd_snd = document.getElementById('snd' + parseInt(Math.random() * 7));
+                rnd_snd.currentTime = 0;
+                rnd_snd.play();
+            }
+
+            // main loop (on interval)
+            function slowloop() {
+                if (document.hidden === true) { return; } // We musn't be rude
+                if (Math.random() < 0.1) {
+                    effect_tearing();
+                }
+                if (Math.random() < 0.05) {
+                    screen_shake();
+                }
+                add_image();
+
+                if (devmode) if (Math.random() < 0.1) vertline();
+
+                // Chrome is mean and usually doesn't let us autoplay sound anymore :(
+                // Fun fact, trying to use HTML5 audio causes this function to die when
+                // run in IE from an "N" edition of windows, which is why this is last
+                do_sound();
+            }
+
+            // bump the screen side-to-side
+            function screen_shake() {
+                the_canvas_container.style.left = ((Math.random() < 0.5) ? "-" : "") + "50px";
+                setTimeout(function () {
+                    the_canvas_container.style.left = '0px';
+                }, 50);
+            }
+
+            // draw vertical lines of "dead pixels"
+            function vertline() {
+
+                var base_x = parseInt(Math.random() * (the_canvas_width - 10));
+
+                for (let i = 0; i < 10; i++) {
+                    the_canvas_ctx.strokeStyle = 'rgb(' +
+                        parseInt(Math.random() * 255) + ',' +
+                        parseInt(Math.random() * 255) + ',' +
+                        parseInt(Math.random() * 255) + ')';
+
+                    let line_x = base_x + i + Math.random() * 50 - 25;
+
+                    the_canvas_ctx.beginPath();
+                    the_canvas_ctx.moveTo(line_x + 0.5, 0.5);
+                    the_canvas_ctx.lineTo(line_x + 0.5, 0.5 + the_canvas_height);
+                    the_canvas_ctx.stroke();
+                }
+            }
+
+            function sw_init() {
+                the_canvas_container = document.getElementById('canvas_container');
+                the_canvas = document.getElementById('the_canvas');
+                the_canvas_ctx = the_canvas.getContext("2d");
+                setsize();
+                window.setInterval(slowloop, 100);
+            }
+
+            var the_canvas;
+            var the_canvas_container;
+            var the_canvas_ctx;
+            var the_canvas_height;
+            var the_canvas_width;
+
+            var devmode = false;
+            if (document.cookie.indexOf("devmode=enable") !== -1) { devmode = true; }
+
+            window.addEventListener('resize', setsize);
+            window.addEventListener('load', sw_init);
+
+        </script> -->
+
+    <video id="_webcam" style="display: none;" playsinline></video>
+    <canvas
+      id="_imageData"
+      style="position: absolute; z-index: -999; opacity: 0;"
+    ></canvas>
+
+    <script>
+      var brfv4 = {};
+    </script>
+    <script src="js/utils/BRFv4PointUtils.js"></script>
+    <script src="js/BRFv4DemoMinimalWebcam.js"></script>
+    <script src="index.js"></script>
+  </body>
+</html>
