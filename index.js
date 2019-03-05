@@ -1,39 +1,81 @@
-// let smiling = {};
-// let neutral = {};
-// let smiled = false;
+let _start;
 
-let start = new Date();
+// define two constants, one for the eye aspect ratio to indicate
+// blink and then a second constant for the number of consecutive
+// frames the eye must be below the threshold
+const EYE_AR_THRESH = 0.3;
+const EYE_AR_CONSEC_FRAMES = 2;
+
+// initialize the frame counters and the total number of blinks etc.
+let _counter = 0;
+let _total = 0;
+let _blinked = false;
+let _timeOut = -1;
+
+// facial landmarks indexes
+const L_START = 36;
+const L_END = 41;
+const R_START = 42;
+const R_END = 47;
+
+function distance(p0, p1) {
+  return Math.sqrt(
+    (p1.x - p0.x) * (p1.x - p0.x) + (p1.y - p0.y) * (p1.y - p0.y)
+  );
+}
+
+// converts a [x1, y1, x2, y2, x3, y3, ...] array to [{x: x1, y: y1}, {x: x2, y: y3}, ...]
+function shape(array) {
+  let out = [];
+  for (let i = 0; i < array.length; i += 2) {
+    out.push({
+      x: array[i],
+      y: array[i + 1],
+    });
+  }
+  return out;
+}
+
+function eyeAspectRatio(eye) {
+  // compute the euclidean distances between the two sets of
+  // vertical eye landmarks (x, y)-coordinates
+  const A = distance(eye[1], eye[5]);
+  const B = distance(eye[2], eye[4]);
+
+  // compute the euclidean distance between the horizontal
+  // eye landmark (x, y)-coordinates
+  const C = distance(eye[0], eye[3]);
+
+  // compute the eye aspect ratio
+  const EAR = (A + B) / (2.0 * C);
+
+  // return the eye aspect ratio
+  return EAR;
+}
 
 function blink() {
   _blinked = true;
+  _total += 1;
 
   const now = new Date();
-  const timeDiff = (now - start) / 1000; //in s
+  const timeDiff = (now - _start) / 1000; //in s
   // get seconds
   const seconds = Math.round(timeDiff);
   alert(`YOU LASTED ${seconds} SECONDS!`);
-  start = new Date();
+  _start = new Date();
 
   if (_timeOut > -1) {
     clearTimeout(_timeOut);
   }
 
-  _timeOut = setTimeout(resetBlink, 150);
+  _timeOut = setTimeout(resetBlink, 500);
 }
 
 function resetBlink() {
   _blinked = false;
 }
 
-function storeFaceShapeVertices(vertices) {
-  for (var i = 0, l = vertices.length; i < l; i++) {
-    _oldFaceShapeVertices[i] = vertices[i];
-  }
-}
-
-var _oldFaceShapeVertices = [];
-var _blinked = false;
-var _timeOut = -1;
+let _initialized = false;
 
 // BRFv4DemoMinimal.js defines: var handleTrackingResults = function(brfv4, faces, imageDataCtx)
 // Here we overwrite it. The initialization code for BRFv4 should always be similar,
@@ -43,96 +85,69 @@ handleTrackingResults = function(
   faces, // tracked faces
   imageDataCtx // canvas context to draw into
 ) {
-  // var p0 = new brfv4.Point();
-  // var p1 = new brfv4.Point();
-  // var setPoint = brfv4.BRFv4PointUtils.setPoint;
-  // var calcDistance = brfv4.BRFv4PointUtils.calcDistance;
+  if (faces && !_initialized) {
+    _initialized = true;
+    _start = new Date();
+    sw_init();
+    setsize();
+  }
 
-  for (var i = 0; i < faces.length; i++) {
-    var face = faces[i];
+  for (let i = 0; i < faces.length; i++) {
+    const face = faces[i];
     if (
       face.state === brfv4.BRFState.FACE_TRACKING_START ||
       face.state === brfv4.BRFState.FACE_TRACKING
     ) {
-      // simple blink detection
+      const v = shape(face.vertices);
+      //const v = face.vertices;
+      // if (i % 300 === 0) console.log('vertices: ', v);
 
-      // A simple approach with quite a lot false positives. Fast movement can't be
-      // handled properly. This code is quite good when it comes to
-      // staring contest apps though.
+      // extract the left and right eye coordinates, then use the
+      // coordinates to compute the eye aspect ratio for both eyes
+      const leftEye = v.slice(L_START, L_END + 1);
+      const rightEye = v.slice(R_START, R_END + 1);
+      // if (i % 300 === 0) console.log('eyes: ', leftEye, rightEye);
+      const leftEAR = eyeAspectRatio(leftEye);
+      const rightEAR = eyeAspectRatio(rightEye);
+      // if (i % 300 === 0) console.log('EARs: ', leftEAR, rightEAR);
 
-      // It basically compares the old positions of the eye points to the current ones.
-      // If rapid movement of the current points was detected it's considered a blink.
+      // average the eye aspect ratio together for both eyes
+      const EAR = (leftEAR + rightEAR) / 2.0;
+      // if (i % 300 === 0) console.log('EAR: ', EAR);
 
-      var v = face.vertices;
+      // check to see if the eye aspect ratio is below the blink
+      // threshold, and if so, increment the blink frame counter
+      if (EAR < EYE_AR_THRESH) {
+        _counter += 1;
+        // otherwise, the eye aspect ratio is not below the blink
+        // threshold
+      } else {
+        // if the eyes were closed for a sufficient number of
+        // then increment the total number of blinks
+        if (_counter >= EYE_AR_CONSEC_FRAMES) {
+          console.log('BLINKED!');
+          blink();
+        }
 
-      if (_oldFaceShapeVertices.length === 0) storeFaceShapeVertices(v);
-
-      var k, l, yLE, yRE;
-
-      // Left eye movement (y)
-
-      for (k = 36, l = 41, yLE = 0; k <= l; k++) {
-        yLE += v[k * 2 + 1] - _oldFaceShapeVertices[k * 2 + 1];
+        // reset the eye frame counter
+        _counter = 0;
       }
-      yLE /= 6;
 
-      // Right eye movement (y)
-
-      for (k = 42, l = 47, yRE = 0; k <= l; k++) {
-        yRE += v[k * 2 + 1] - _oldFaceShapeVertices[k * 2 + 1];
-      }
-
-      yRE /= 6;
-
-      var yN = 0;
-
-      // Compare to overall movement (nose y)
-
-      yN += v[27 * 2 + 1] - _oldFaceShapeVertices[27 * 2 + 1];
-      yN += v[28 * 2 + 1] - _oldFaceShapeVertices[28 * 2 + 1];
-      yN += v[29 * 2 + 1] - _oldFaceShapeVertices[29 * 2 + 1];
-      yN += v[30 * 2 + 1] - _oldFaceShapeVertices[30 * 2 + 1];
-      yN /= 4;
-
-      var blinkRatio = Math.abs((yLE + yRE) / yN);
-
-      if (blinkRatio > 12 && (yLE > 0.4 || yRE > 0.4)) {
-        console.log(
-          'blink ' +
-            blinkRatio.toFixed(2) +
-            ' ' +
-            yLE.toFixed(2) +
-            ' ' +
-            yRE.toFixed(2) +
-            ' ' +
-            yN.toFixed(2)
-        );
-
-        blink();
-      }
+      /* ********************************************************************************
+       *  FACE EDGES
+       *
+       *  Don't draw the face edges, but don't delete the code if we want it later
+       * ******************************************************************************** */
+      continue;
 
       // Let the color of the shape show whether you blinked.
-
-      //var color = 0x00a0ff;
-      var color = '#00a0ff';
-
-      if (_blinked) {
-        color = '#ffd200';
-      }
+      let color = '#00a0ff';
+      if (_blinked) color = '#ffd200';
 
       // Face Tracking results: 68 facial feature points.
-
       // draw.drawTriangles(face.vertices, face.triangles, false, 1.0, color, 0.4);
       // draw.drawVertices(face.vertices, 2.0, false, color, 0.4);
-
-      // brfv4Example.dom.updateHeadline(
-      //   'BRFv4 - advanced - face tracking - simple blink' +
-      //     'detection.\nDetects an eye  blink: ' +
-      //     (_blinked ? 'Yes' : 'No')
-      // );
-
       imageDataCtx.strokeStyle = color;
-
       for (var k = 0; k < face.vertices.length; k += 2) {
         imageDataCtx.beginPath();
         imageDataCtx.arc(
@@ -144,55 +159,13 @@ handleTrackingResults = function(
         );
         imageDataCtx.stroke();
       }
-
-      storeFaceShapeVertices(v);
-
-      // Smile Detection
-
-      //   setPoint(face.vertices, 48, p0); // mouth corner left
-      //   setPoint(face.vertices, 54, p1); // mouth corner right
-
-      //   var mouthWidth = calcDistance(p0, p1);
-
-      //   setPoint(face.vertices, 39, p1); // left eye inner corner
-      //   setPoint(face.vertices, 42, p0); // right eye outer corner
-
-      //   var eyeDist = calcDistance(p0, p1);
-      //   var smileFactor = mouthWidth / eyeDist;
-
-      //   smileFactor -= 1.4; // 1.40 - neutral, 1.70 smiling
-
-      //   if (smileFactor > 0.25) smileFactor = 0.25;
-      //   if (smileFactor < 0.0) smileFactor = 0.0;
-
-      //   smileFactor *= 4.0;
-
-      //   if (smileFactor > 0.5) {
-      //     smiling['face' + 1] += 1;
-      //     neutral['face' + 1] = 0;
-      //     if (smiling['face' + 1] > 2) {
-      //       smiled = true;
-      //       nyanTip.style.display = 'none';
-      //       nyanGif.style.display = 'block';
-      //       if (nyanAudio.paused) {
-      //         nyanAudio.fastSeek(5.4);
-      //         nyanAudio.play();
-      //       }
-      //     }
-      //   } else {
-      //     smiling['face' + 1] = 0;
-      //     neutral['face' + 1] += 1;
-      //     if (neutral['face' + 1] > 5) {
-      //       nyanGif.style.display = 'none';
-      //       nyanAudio.pause();
-      //     }
-      //   }
     }
   }
 };
 
 // resize the canvas to match the window
 function setsize() {
+  if (!_initialized) return;
   the_canvas.width = the_canvas_container.clientWidth;
   the_canvas_width = the_canvas_container.clientWidth;
   the_canvas.height = the_canvas_container.clientHeight;
@@ -235,7 +208,7 @@ function add_image() {
 
 // rewind and play one of the audio elements
 function do_sound() {
-  return;
+  return; // is there a sound file?
   var rnd_snd = document.getElementById('snd' + parseInt(Math.random() * 7));
   rnd_snd.currentTime = 0;
   rnd_snd.play();
@@ -313,22 +286,4 @@ if (document.cookie.indexOf('devmode=enable') !== -1) {
 }
 
 window.addEventListener('resize', setsize);
-window.addEventListener('load', sw_init);
-
-// onResize = function() {
-//   // fill whole browser
-//   var imageData = document.getElementById('_imageData');
-//   var ww = window.innerWidth;
-//   var wh = window.innerHeight;
-//   var s = wh / imageData.height;\
-//   if (imageData.width * s < ww) {
-//     s = ww / imageData.width;
-//   }
-//   var iw = imageData.width * s;
-//   var ih = imageData.height * s;
-//   var ix = (ww - iw) * 0.5;
-//   var iy = (wh - ih) * 0.5;
-//   imageData.style.transformOrigin = '0% 0%';
-//   imageData.style.transform =
-//     'matrix(' + s + ', 0, 0, ' + s + ', ' + ix + ', ' + iy + ')';
-// };
+//window.addEventListener('load', sw_init);
